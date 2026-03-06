@@ -40,12 +40,13 @@
     // --- Firebase 連線設定 (請在這裡填入你的設定) ---
     // ⚠️ 必須將以下內容替換成你 Firebase 專案的真實設定！
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyBEnhhC0jwY-SGJyv7MakB7IKE--mpBJ4c",
+      authDomain: "glowu-97c37.firebaseapp.com",
+      projectId: "glowu-97c37",
+      storageBucket: "glowu-97c37.firebasestorage.app",
+      messagingSenderId: "433418002202",
+      appId: "1:433418002202:web:d87b8c92b3c922649fd6a3",
+      measurementId: "G-N19Q5J2DPX"
     };
     
     // 設定一個固定的 App ID 來當作資料庫路徑
@@ -223,31 +224,35 @@
         const allDocs = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
         const todayStr = getLogicDateString();
 
+        // --- 1. 處理寶寶的任務 ---
         const babyTasks = allDocs.filter(t => t.owner === '寶寶' && !t.isHidden);
-        if (babyTasks.length === 0) {
-           for (const task of DEFAULT_BABY_TASKS) await addDoc(tasksRef, { ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr });
-           await addDoc(tasksRef, { type: 'init_marker', owner: '寶寶', isHidden: true });
-        } else {
-           const babyWaterTask = babyTasks.find(t => t.text === '每日喝水目標');
-           if (babyWaterTask && babyWaterTask.targetValue === 2000) {
-              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', babyWaterTask.id), { targetValue: 1000, completed: babyWaterTask.currentValue >= 1000 ? true : babyWaterTask.completed });
+        // 【關鍵修改】自動比對並補齊寶寶缺失的預設任務
+        for (const task of DEFAULT_BABY_TASKS) {
+           if (!babyTasks.some(t => t.text === task.text)) {
+              await addDoc(tasksRef, { ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr });
            }
         }
+        
+        // 保留原有的喝水任務更新邏輯
+        const babyWaterTask = babyTasks.find(t => t.text === '每日喝水目標');
+        if (babyWaterTask && babyWaterTask.targetValue === 2000) {
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', babyWaterTask.id), { targetValue: 1000, completed: babyWaterTask.currentValue >= 1000 ? true : babyWaterTask.completed });
+        }
 
+        // --- 2. 處理大叔的任務 ---
         const uncleTasks = allDocs.filter(t => t.owner === '大叔' && !t.isHidden);
-        if (uncleTasks.length === 0) {
-           for (const task of DEFAULT_UNCLE_TASKS) await addDoc(tasksRef, { ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr });
-           await addDoc(tasksRef, { type: 'init_marker', owner: '大叔', isHidden: true });
-        } else {
-           const stepUpTask = uncleTasks.find(t => t.text === '步步高升');
-           if (stepUpTask && stepUpTask.choices && stepUpTask.choices.length === 2) {
-              const newChoices = [...stepUpTask.choices, { id: 'c3', label: '使用打ㄆ特權！' }];
-              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', stepUpTask.id), { choices: newChoices, note: '擇一即可完成' });
+        // 【關鍵修改】自動比對並補齊大叔缺失的預設任務
+        for (const task of DEFAULT_UNCLE_TASKS) {
+           if (!uncleTasks.some(t => t.text === task.text)) {
+              await addDoc(tasksRef, { ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr });
            }
-           const cuddleTask = uncleTasks.find(t => t.text === '抱可愛迷人的寶包睡覺覺🥵');
-           if (!cuddleTask) {
-              await addDoc(tasksRef, { type: 'simple', text: '抱可愛迷人的寶包睡覺覺🥵', completed: false, owner: '大叔', note: '每晚最重要的事情', order: 10, isDefault: true, createdAt: Date.now(), lastUpdatedDate: todayStr });
-           }
+        }
+        
+        // 保留原有的步步高升任務更新邏輯
+        const stepUpTask = uncleTasks.find(t => t.text === '步步高升');
+        if (stepUpTask && stepUpTask.choices && stepUpTask.choices.length === 2) {
+           const newChoices = [...stepUpTask.choices, { id: 'c3', label: '使用打ㄆ特權！' }];
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', stepUpTask.id), { choices: newChoices, note: '擇一即可完成' });
         }
       } catch (err) { console.error("預設任務檢查失敗:", err); }
     };

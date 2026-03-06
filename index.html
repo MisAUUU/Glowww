@@ -37,9 +37,19 @@
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, setDoc, getDocs, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- Firebase 連線設定 ---
-    const firebaseConfig = typeof window.__firebase_config !== 'undefined' ? JSON.parse(window.__firebase_config) : {};
-    const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+    // --- Firebase 連線設定 (請在這裡填入你的設定) ---
+    // ⚠️ 必須將以下內容替換成你 Firebase 專案的真實設定！
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    
+    // 設定一個固定的 App ID 來當作資料庫路徑
+    const appId = "uncle-baby-tracker"; 
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -106,12 +116,11 @@
     // --- 初始化與連線監聽 ---
     const initApp = async () => {
       try {
-        if (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token) {
-          await signInWithCustomToken(auth, window.__initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) { console.error("Auth Error", err); }
+        await signInAnonymously(auth); // 直接使用匿名登入
+      } catch (err) { 
+        console.error("Auth Error", err); 
+        document.getElementById('app').innerHTML = `<div class="flex items-center justify-center min-h-screen text-red-500 font-bold p-6 text-center">無法登入資料庫，請檢查 Firebase 驗證設定！<br>錯誤訊息：${err.message}</div>`;
+      }
 
       onAuthStateChanged(auth, (user) => {
         state.user = user;
@@ -181,7 +190,12 @@
           updateDailyRecords();
           scheduleRender();
         } catch (error) { console.error("任務載入錯誤:", error); }
-      }, (err) => console.error("Task Snapshot Error", err));
+      }, (err) => {
+          console.error("Task Snapshot Error", err);
+          if(err.code === 'permission-denied') {
+              window.showAlert("資料庫權限不足！請確認 Firebase Firestore 的規則已設定為允許讀寫。");
+          }
+      });
 
       unsubRecords = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'challenge_records'), (snapshot) => {
         state.calendarRecords = {};

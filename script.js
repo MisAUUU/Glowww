@@ -214,9 +214,13 @@ const checkAndInjectDefaults = async () => {
 };
 
 const updateDailyRecords = async () => {
-    if (!state.user || state.tasks.length === 0) return;
-    const todayStr = getLogicDateString();
-    const isSunday = new Date().getDay() === 0;
+        if (!state.user || state.tasks.length === 0) return;
+        const todayStr = getLogicDateString();
+        
+        // 配合凌晨 5 點換日，確保「週一凌晨」依然算是「邏輯週日」的結算範圍
+        const now = new Date();
+        if (now.getHours() < 5) now.setDate(now.getDate() - 1);
+        const isSunday = now.getDay() === 0;
 
     const babyTasks = state.tasks.filter(t => t.owner === '寶寶' && !t.isHidden);
     const uncleTasks = state.tasks.filter(t => t.owner === '大叔' && !t.isHidden);
@@ -336,10 +340,14 @@ const renderDashboard = () => {
   const partnerTasks = state.tasks.filter(t => t.owner === partnerName && !t.isHidden);
   
   const getProgress = (taskList) => { 
-    const isSunday = new Date().getDay() === 0;
-    const calcTasks = taskList.filter(t => isSunday || !isTaskWeekly(t));
-    return { total: calcTasks.length, done: calcTasks.filter(t => t.completed).length }; 
-  };
+        // 配合凌晨 5 點換日，確保「週一凌晨」依然算是「邏輯週日」的結算範圍
+        const now = new Date();
+        if (now.getHours() < 5) now.setDate(now.getDate() - 1);
+        const isSunday = now.getDay() === 0;
+        
+        const calcTasks = taskList.filter(t => isSunday || !isTaskWeekly(t));
+        return { total: calcTasks.length, done: calcTasks.filter(t => t.completed).length }; 
+      };
   const myProgress = getProgress(myTasks);
   const partnerProgress = getProgress(partnerTasks);
 

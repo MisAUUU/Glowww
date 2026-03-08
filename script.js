@@ -618,6 +618,59 @@ const renderTaskHtml = (task, isOwner) => {
     </div>
   `;
 };
+// --- 寶包有話要說：公告 Modal 邏輯 ---
+    let announcementShownThisSession = false; // 紀錄這次打開網頁是否已經顯示過了
+    
+    window.showAnnouncementModal = () => {
+        if (announcementShownThisSession) return; // 如果剛才已經跳過，就不要再煩人
+        
+        const todayStr = getLogicDateString();
+        // 檢查 localStorage 裡面記的日期，是不是等於今天
+        if (localStorage.getItem('hide_announcement_date') === todayStr) return; 
+        
+        announcementShownThisSession = true; 
+
+        const html = `
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) closeAnnouncement()">
+                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up">
+                    <button onclick="closeAnnouncement()" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+                        <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+                    </button>
+                    
+                    <div class="text-center mb-6 mt-2">
+                        <div class="inline-flex items-center justify-center p-3 bg-white rounded-full shadow-sm border border-[#EFEBE9] mb-3">
+                            <i data-lucide="megaphone" class="w-6 h-6 text-[#8D6E63] fill-[#D7CCC8]"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-[#5D4037]">寶包有話要說嗷嗷嗷</h3>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-2xl border border-[#EFEBE9] shadow-sm mb-6">
+                        <p class="text-[#5D4037] text-sm leading-relaxed text-center font-bold">
+                            現在點所有的叉叉都可以關掉了嗷嗷嗷，<br>點空白處也還是可以嗷嗷！
+                        </p>
+                    </div>
+                    
+                    <label class="flex items-center justify-center gap-2 mb-5 cursor-pointer group w-fit mx-auto">
+                        <input type="checkbox" id="dont-show-today" class="w-4 h-4 accent-[#8D6E63] cursor-pointer rounded border-[#D7CCC8]">
+                        <span class="text-xs text-[#8D6E63] font-bold group-hover:text-[#5D4037] transition-colors">今天不再顯示此公告</span>
+                    </label>
+                    
+                    <button onclick="closeAnnouncement()" class="w-full py-3 bg-[#5D4037] text-white rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors shadow-md">我知道了</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('modals').innerHTML = html;
+        lucide.createIcons();
+    };
+
+    window.closeAnnouncement = () => {
+        const isChecked = document.getElementById('dont-show-today')?.checked;
+        if (isChecked) {
+            // 如果有打勾，就把今天的日期存進瀏覽器記憶體裡
+            localStorage.setItem('hide_announcement_date', getLogicDateString());
+        }
+        document.getElementById('modals').innerHTML = '';
+    };
 
 let renderTimer = null;
 const scheduleRender = () => {
@@ -628,14 +681,19 @@ const scheduleRender = () => {
 };
 
 const render = () => {
-  const appDiv = document.getElementById('app');
-  if (!state.identity) {
-    appDiv.innerHTML = renderLogin();
-  } else {
-    appDiv.innerHTML = renderDashboard();
-  }
-  lucide.createIcons();
-};
+      const appDiv = document.getElementById('app');
+      if (!state.identity) {
+        appDiv.innerHTML = renderLogin();
+      } else {
+        appDiv.innerHTML = renderDashboard();
+        
+        // 渲染完主畫面後，稍微延遲 0.3 秒再跳出公告，讓視覺過渡比較滑順
+        setTimeout(() => {
+            if (window.showAnnouncementModal) window.showAnnouncementModal();
+        }, 300);
+      }
+      lucide.createIcons();
+    };
 
 // --- 事件處理與代理 (寫入雲端) ---
 document.addEventListener('click', async (e) => {

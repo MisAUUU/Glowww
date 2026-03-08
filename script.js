@@ -244,33 +244,44 @@ const updateDailyRecords = async () => {
     }
 };
 
-window.showAlert = (message) => {
-    const html = `
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in">
-            <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 slide-up text-center">
-                <p class="text-[#5D4037] font-bold mb-6">${message}</p>
-                <button onclick="document.getElementById('modals').innerHTML=''" class="w-full py-3 bg-[#5D4037] text-white rounded-xl font-bold text-sm">確定</button>
-            </div>
-        </div>
-    `;
-    document.getElementById('modals').innerHTML = html;
-};
-
-window.showConfirm = (message, onConfirm) => {
-    window._confirmCallback = onConfirm;
-    const html = `
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in">
-            <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 slide-up text-center">
-                <p class="text-[#5D4037] font-bold mb-6 whitespace-pre-line">${message}</p>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('modals').innerHTML=''" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm">取消</button>
-                    <button onclick="document.getElementById('modals').innerHTML=''; window._confirmCallback()" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold text-sm">確定</button>
+// --- 客製化 Modal (升級版：支援右上角叉叉與點擊背景關閉) ---
+    window.showAlert = (message) => {
+        const html = `
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" data-action="close-modal">
+                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center" onclick="event.stopPropagation()">
+                    <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                    
+                    <p class="text-[#5D4037] font-bold mt-4 mb-6">${message}</p>
+                    <button data-action="close-modal" class="w-full py-3 bg-[#5D4037] text-white rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors">確定</button>
                 </div>
             </div>
-        </div>
-    `;
-    document.getElementById('modals').innerHTML = html;
-};
+        `;
+        document.getElementById('modals').innerHTML = html;
+        lucide.createIcons(); // ⚠️這行很重要，這樣叉叉的圖示才會順利畫出來！
+    };
+
+    window.showConfirm = (message, onConfirm) => {
+        window._confirmCallback = onConfirm;
+        const html = `
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" data-action="close-modal">
+                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center" onclick="event.stopPropagation()">
+                    <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+
+                    <p class="text-[#5D4037] font-bold mt-4 mb-6 whitespace-pre-line">${message}</p>
+                    <div class="flex gap-3">
+                        <button data-action="close-modal" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm hover:bg-[#D7CCC8] transition-colors">取消</button>
+                        <button onclick="document.getElementById('modals').innerHTML=''; window._confirmCallback()" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold text-sm hover:bg-red-600 transition-colors">確定</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('modals').innerHTML = html;
+        lucide.createIcons(); // 確保圖示正常顯示
+    };
 
 const renderLogin = () => `
   <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">

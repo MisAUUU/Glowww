@@ -116,22 +116,22 @@ const setupListeners = () => {
         if (isTaskWeekly(t)) {
             if (!t.isWeekly) { batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', t.id), { isWeekly: true, type: 'checklist' }); needsBatchCommit = true; }
             if (t.lastUpdatedWeek !== currentWeekString) {
-                let resetData = { lastUpdatedWeek: currentWeekString, lastUpdatedDate: todayLogicDate, completed: false };
+                let resetData = { lastUpdatedWeek: currentWeekString, lastUpdatedDate: todayLogicDate, completed: false, remedyTargetDate: null, remedyCompleted: false };
                 if (t.type === 'progress') resetData.currentValue = 0;
                 else if (t.type === 'checklist') resetData.checklistItems = t.checklistItems?.map(i => ({...i, isChecked: false})) || [];
                 batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', t.id), resetData);
                 needsBatchCommit = true;
-                t.completed = false; t.currentValue = 0; if (t.checklistItems) t.checklistItems.forEach(i => i.isChecked = false);
+                t.completed = false; t.remedyTargetDate = null; t.remedyCompleted = false; t.currentValue = 0; if (t.checklistItems) t.checklistItems.forEach(i => i.isChecked = false);
             }
         } else {
             if (t.lastUpdatedDate !== todayLogicDate) {
-              let resetData = { lastUpdatedDate: todayLogicDate, completed: false };
+              let resetData = { lastUpdatedDate: todayLogicDate, completed: false, remedyTargetDate: null, remedyCompleted: false };
               if (t.type === 'progress') resetData.currentValue = 0;
               else if (t.type === 'choice') resetData.selectedChoiceId = null;
               else if (t.type === 'checklist') resetData.checklistItems = t.checklistItems?.map(i => ({...i, isChecked: false})) || [];
               batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', t.id), resetData);
               needsBatchCommit = true;
-              t.completed = false; t.currentValue = 0; t.selectedChoiceId = null; if (t.checklistItems) t.checklistItems.forEach(i => i.isChecked = false); t.lastUpdatedDate = todayLogicDate;
+              t.completed = false; t.remedyTargetDate = null; t.remedyCompleted = false; t.currentValue = 0; t.selectedChoiceId = null; if (t.checklistItems) t.checklistItems.forEach(i => i.isChecked = false); t.lastUpdatedDate = todayLogicDate;
             }
         }
       });
@@ -620,12 +620,27 @@ const renderTaskHtml = (task, isOwner) => {
                   <i data-lucide="edit-3" class="w-3 h-3 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/note:opacity-100"></i>
                 </div>
               </div>
-          ${innerHtml}
+         ${innerHtml}
+            </div>
+          </div>
+          
+          ${task.remedyTargetDate ? `
+            <div class="mt-3 pt-3 border-t border-dashed border-[#D7CCC8]">
+                <div class="flex items-center justify-between bg-[#FFF3E0] rounded-xl p-3 border border-[#FFE0B2]">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="mail" class="w-4 h-4 text-[#E65100]"></i>
+                        <span class="text-xs font-bold text-[#E65100]">Double卡補救任務</span>
+                    </div>
+                    <button data-action="complete-remedy" data-id="${task.id}" ${!isOwner || task.remedyCompleted ? 'disabled' : ''} class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${task.remedyCompleted ? 'bg-[#E65100] text-white' : 'bg-white text-[#E65100] border border-[#FFCC80] hover:bg-[#FFE0B2] cursor-pointer'}">
+                        ${task.remedyCompleted ? '<i data-lucide="check" class="w-3.5 h-3.5"></i> 已補救' : '補救嗷啦！'}
+                    </button>
+                </div>
+            </div>
+          ` : ''}
+          
         </div>
-      </div>
-    </div>
-  `;
-};
+      `;
+    };
 // --- 寶包有話要說：公告 Modal 邏輯 ---
     let announcementShownThisSession = false; // 紀錄這次打開網頁是否已經顯示過了
     
@@ -674,10 +689,92 @@ const renderTaskHtml = (task, isOwner) => {
     window.closeAnnouncement = () => {
         const isChecked = document.getElementById('dont-show-today')?.checked;
         if (isChecked) {
-            // 如果有打勾，就把今天的日期存進瀏覽器記憶體裡
             localStorage.setItem('hide_announcement_date', getLogicDateString());
         }
         document.getElementById('modals').innerHTML = '';
+        window.checkDoubleCard(); // 公告關閉後，接著檢查 Double 卡
+    };
+
+    // --- Double 卡補救機制 ---
+    window.checkDoubleCard = () => {
+        if (!state.identity || !state.user) return;
+        const todayStr = getLogicDateString();
+        // 如果今天已經處理過（拒絕或找不到），就不再煩人
+        if (localStorage.getItem(`double_card_prompt_${state.identity}`) === todayStr) return;
+
+        // 計算昨天的邏輯日期
+        const now = new Date();
+        if (now.getHours() < 5) now.setDate(now.getDate() - 1);
+        now.setDate(now.getDate() - 1); 
+        const yStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        const yRecord = state.calendarRecords[yStr];
+        if (!yRecord) { localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr); return; }
+
+        const details = state.identity === '寶寶' ? yRecord.babyDetails : yRecord.uncleDetails;
+        if (!details || !details.missed) { localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr); return; }
+
+        // 篩選出昨天的「每日任務」（排除每週任務）
+        const missedDaily = details.missed.filter(missedText => {
+            const taskObj = state.tasks.find(t => t.owner === state.identity && (t.originalText || t.text) === missedText);
+            return taskObj && !isTaskWeekly(taskObj);
+        });
+
+        // 條件：剛好只有 1 項每日任務沒完成
+        if (missedDaily.length === 1) {
+            const missedTaskText = missedDaily[0];
+            const taskObj = state.tasks.find(t => t.owner === state.identity && (t.originalText || t.text) === missedTaskText);
+            
+            if (taskObj && taskObj.remedyTargetDate === yStr) return; // 已經按過「我要！！」了
+            
+            if (taskObj) {
+                showDoubleCardModal(missedTaskText, yStr, taskObj.id);
+                return; // 成功顯示，中斷往下儲存
+            }
+        }
+        
+        // 其他情況（全完成、漏掉 >= 2 項），標記為今天已檢查
+        localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr);
+    };
+
+    window.showDoubleCardModal = (taskText, targetDate, taskId) => {
+        const html = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) closeDoubleCard()">
+            <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center">
+                <div class="inline-flex items-center justify-center p-3 bg-white rounded-full shadow-sm border border-[#EFEBE9] mb-4 mt-2">
+                    <i data-lucide="mail" class="w-6 h-6 text-[#8D6E63] fill-[#EFEBE9]"></i>
+                </div>
+                <h3 class="text-xl font-bold text-[#5D4037] mb-4">叮叮！泥昨天有一項任務沒有完成</h3>
+                
+                <div class="bg-white p-4 rounded-2xl border border-[#EFEBE9] shadow-sm mb-6 text-center">
+                    <p class="text-[#5D4037] text-sm font-bold mb-3">今天要使用 double 卡彌補嘛？</p>
+                    <p class="text-xs text-[#8D6E63] p-2 bg-[#FDF8F3] rounded-xl border border-[#D7CCC8] font-bold">${taskText}</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeDoubleCard()" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm hover:bg-[#D7CCC8] transition-colors">今天累累</button>
+                    <button onclick="acceptDoubleCard('${taskId}', '${targetDate}')" class="flex-1 py-3 bg-[#5D4037] text-white rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors shadow-md">我要！！</button>
+                </div>
+            </div>
+        </div>
+        `;
+        document.getElementById('modals').innerHTML = html;
+        lucide.createIcons();
+    };
+
+    window.closeDoubleCard = () => {
+        localStorage.setItem(`double_card_prompt_${state.identity}`, getLogicDateString());
+        document.getElementById('modals').innerHTML = '';
+    };
+
+    window.acceptDoubleCard = async (taskId, targetDate) => {
+        localStorage.setItem(`double_card_prompt_${state.identity}`, getLogicDateString());
+        document.getElementById('modals').innerHTML = '';
+        if (taskId) {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', taskId), {
+                remedyTargetDate: targetDate,
+                remedyCompleted: false
+            });
+        }
     };
 
 let renderTimer = null;
@@ -697,7 +794,11 @@ const render = () => {
         
         // 渲染完主畫面後，稍微延遲 0.3 秒再跳出公告，讓視覺過渡比較滑順
         setTimeout(() => {
-            if (window.showAnnouncementModal) window.showAnnouncementModal();
+            if (window.showAnnouncementModal && !announcementShownThisSession && localStorage.getItem('hide_announcement_date') !== getLogicDateString()) {
+                window.showAnnouncementModal();
+            } else {
+                window.checkDoubleCard(); // 如果不顯示公告，就直接檢查 Double 卡
+            }
         }, 300);
       }
       lucide.createIcons();
@@ -793,6 +894,30 @@ document.addEventListener('click', async (e) => {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', id), { checklistItems: newItems, completed: isYogaChecked || checkedCount >= task.targetCount });
       }
     }
+    else if (action === 'complete-remedy') {
+          const task = state.tasks.find(t => String(t.id) === String(id));
+          if (task && task.owner === state.identity && !task.remedyCompleted) {
+             // 1. 完成今日補救項目
+             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', id), { remedyCompleted: true });
+
+             // 2. 更新昨天的日曆紀錄
+             const targetDate = task.remedyTargetDate;
+             if (targetDate) {
+                 const record = state.calendarRecords[targetDate] || {};
+                 const detailsKey = state.identity === '寶寶' ? 'babyDetails' : 'uncleDetails';
+                 const details = record[detailsKey] || {};
+                 const remediedList = details.remedied || [];
+                 const taskText = task.originalText || task.text;
+                 
+                 if (!remediedList.includes(taskText)) {
+                     remediedList.push(taskText);
+                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_records', targetDate), {
+                         [detailsKey]: { ...details, remedied: remediedList }
+                     }, { merge: true });
+                 }
+             }
+          }
+        }
     else if (action === 'delete-task') {
       window.showConfirm('確定要永久刪除這個任務嗎？\n(刪除後將不再顯示，如需恢復需手動新增)', async () => {
          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', id));
@@ -1043,11 +1168,11 @@ document.addEventListener('click', async (e) => {
               <div class="space-y-4">
                 <div class="bg-white p-4 rounded-2xl border border-[#FFE0B2] shadow-sm">
                    <div class="flex justify-between items-center mb-2 border-b border-[#FFF3E0] pb-2"><h4 class="font-bold text-[#8D6E63] flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> 寶寶</h4>${babyAllDone ? '<span class="text-lg">💅</span>' : ''}</div>
-                   ${babyTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : babyAllDone ? '<p class="text-xs text-[#8D6E63] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太棒了！</p>' : `<div><p class="text-[10px] text-[#A1887F] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${babyMissed.map(t => `<li class="text-xs text-[#8D6E63]">${t}</li>`).join('')}</ul></div>`}
+                   ${babyTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : babyAllDone ? '<p class="text-xs text-[#8D6E63] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太棒了！</p>' : `<div><p class="text-[10px] text-[#A1887F] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${babyMissed.map(t => { const isRemedied = record?.babyDetails?.remedied?.includes(t); return `<li class="text-xs text-[#8D6E63]">${isRemedied ? `<s class="opacity-60">${t}</s> <span class="text-green-600 font-bold ml-1">守住了嗷嗷嗷！</span>` : t}</li>`; }).join('')}</ul></div>`}
                 </div>
                 <div class="bg-white p-4 rounded-2xl border border-[#E0E0E0] shadow-sm">
                    <div class="flex justify-between items-center mb-2 border-b border-[#F5F5F5] pb-2"><h4 class="font-bold text-[#616161] flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4"></i> 大叔</h4>${uncleAllDone ? '<span class="text-lg">💋</span>' : ''}</div>
-                   ${uncleTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : uncleAllDone ? '<p class="text-xs text-[#616161] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太強了！</p>' : `<div><p class="text-[10px] text-[#9E9E9E] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${uncleMissed.map(t => `<li class="text-xs text-[#757575]">${t}</li>`).join('')}</ul></div>`}
+                   ${uncleTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : uncleAllDone ? '<p class="text-xs text-[#616161] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太強了！</p>' : `<div><p class="text-[10px] text-[#9E9E9E] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${uncleMissed.map(t => { const isRemedied = record?.uncleDetails?.remedied?.includes(t); return `<li class="text-xs text-[#757575]">${isRemedied ? `<s class="opacity-60">${t}</s> <span class="text-green-600 font-bold ml-1">守住了嗷嗷嗷！</span>` : t}</li>`; }).join('')}</ul></div>`}
                 </div>
               </div>
             `}

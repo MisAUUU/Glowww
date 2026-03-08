@@ -588,18 +588,18 @@ const renderTaskHtml = (task, isOwner) => {
         `}
         <div class="flex-grow min-w-0">
           <div class="flex justify-between items-start min-h-[28px]">
-            <div class="flex items-center gap-2 group/title cursor-pointer" ${isOwner ? `data-action="edit-task" data-id="${task.id}" data-field="text"` : ''}>
-              <h4 class="font-bold text-[#4E342E] leading-tight ${isCompleted && task.type === 'simple' ? 'line-through text-[#A1887F]' : ''}">${task.text}</h4>
-              ${isOwner ? '<i data-lucide="edit-3" class="w-3.5 h-3.5 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/title:opacity-100"></i>' : ''}
-            </div>
-            ${isOwner ? `<button data-action="delete-task" data-id="${task.id}" class="p-1.5 -mt-1.5 -mr-2 text-[#D7CCC8] hover:text-red-400 hover:bg-[#EFEBE9] rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
-          </div>
-          <div class="mt-1 mb-3">
-            <div class="flex items-center gap-2 group/note min-h-[20px] cursor-pointer" ${isOwner ? `data-action="edit-task" data-id="${task.id}" data-field="note"` : ''}>
-              <p class="text-xs text-[#A1887F] flex items-center gap-1"><i data-lucide="message-circle" class="w-2.5 h-2.5"></i> ${task.note || '<span class="italic opacity-50">點擊新增備註...</span>'}</p>
-              ${isOwner ? '<i data-lucide="edit-3" class="w-3 h-3 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/note:opacity-100"></i>' : ''}
-            </div>
-          </div>
+                <div class="flex items-center gap-2 group/title ${!task.isDefault && isOwner ? 'cursor-pointer' : ''}" ${!task.isDefault && isOwner ? `data-action="edit-task" data-id="${task.id}" data-field="text"` : ''}>
+                  <h4 class="font-bold text-[#4E342E] leading-tight ${isCompleted && task.type === 'simple' ? 'line-through text-[#A1887F]' : ''}">${task.text}</h4>
+                  ${!task.isDefault && isOwner ? '<i data-lucide="edit-3" class="w-3.5 h-3.5 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/title:opacity-100"></i>' : ''}
+                </div>
+                ${isOwner ? `<button data-action="delete-task" data-id="${task.id}" class="p-1.5 -mt-1.5 -mr-2 text-[#D7CCC8] hover:text-red-400 hover:bg-[#EFEBE9] rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+              </div>
+              <div class="mt-1 mb-3">
+                <div class="flex items-center gap-2 group/note min-h-[20px] cursor-pointer" data-action="edit-task" data-id="${task.id}" data-field="note">
+                  <p class="text-xs text-[#A1887F] flex items-center gap-1"><i data-lucide="message-circle" class="w-2.5 h-2.5"></i> ${task.note || '<span class="italic opacity-50">點擊新增備註...</span>'}</p>
+                  <i data-lucide="edit-3" class="w-3 h-3 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/note:opacity-100"></i>
+                </div>
+              </div>
           ${innerHtml}
         </div>
       </div>
@@ -721,12 +721,25 @@ document.addEventListener('click', async (e) => {
       });
     }
     else if (action === 'edit-task') {
-      const task = state.tasks.find(t => String(t.id) === String(id));
-      const field = target.dataset.field;
-      if (task && task.owner === state.identity) {
-         window.openEditModal(task.id, field, null, task[field] || '', field === 'text' ? '修改任務名稱' : '修改任務備註');
-      }
-    }
+          const task = state.tasks.find(t => String(t.id) === String(id));
+          const field = target.dataset.field;
+          if (task) {
+             // 如果點擊的是標題 (text)
+             if (field === 'text') {
+                if (task.isDefault) {
+                   // 預設的每日任務不開放修改標題
+                   return; 
+                }
+                if (task.owner !== state.identity) {
+                   // 臨時任務的標題，只能由任務擁有人自己修改
+                   return; 
+                }
+             }
+             
+             // 如果是點擊備註 (note)，沒有任何權限阻擋，雙方皆可互相修改！
+             window.openEditModal(task.id, field, null, task[field] || '', field === 'text' ? '修改任務名稱' : '互相留言給對方');
+          }
+        }
     else if (action === 'edit-checklist-item') {
       const task = state.tasks.find(t => String(t.id) === String(id));
       const cid = target.dataset.cid;

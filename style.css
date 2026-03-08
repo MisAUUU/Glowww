@@ -1,0 +1,29 @@
+body { 
+  font-family: system-ui, -apple-system, sans-serif; 
+  background-color: #FDF8F3; 
+  color: #4E342E; 
+}
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+.slide-up { animation: slideUp 0.3s ease-out; }
+
+@keyframes fadeIn { 
+  from { opacity: 0; } 
+  to { opacity: 1; } 
+}
+@keyframes slideUp { 
+  from { transform: translateY(20px); opacity: 0; } 
+  to { transform: translateY(0); opacity: 1; } 
+}
+
+/* 進度條流暢填充動畫 */
+@keyframes fillWidth {
+  from { width: var(--start-w); }
+  to { width: var(--end-w); }
+}
+.progress-animate {
+  animation: fillWidth 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.progress-ring__circle { transition: stroke-dashoffset 0.5s ease-out; }

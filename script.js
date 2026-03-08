@@ -188,7 +188,7 @@ const checkAndInjectDefaults = async () => {
 
     const babyTasks = allDocs.filter(t => t.owner === '寶寶' && !t.isHidden);
     for (const task of DEFAULT_BABY_TASKS) {
-       if (!babyTasks.some(t => t.text === task.text)) {
+       if (!babyTasks.some(t => (t.originalText || t.text) === task.text)) {
           await addDoc(tasksRef, { ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr });
        }
     }
@@ -200,7 +200,7 @@ const checkAndInjectDefaults = async () => {
 
     const uncleTasks = allDocs.filter(t => t.owner === '大叔' && !t.isHidden);
     for (const task of DEFAULT_UNCLE_TASKS) {
-       if (!uncleTasks.some(t => t.text === task.text)) {
+       if (!uncleTasks.some(t => (t.originalText || t.text) === task.text)) {
           await addDoc(tasksRef, { ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr });
        }
     }
@@ -600,9 +600,9 @@ const renderTaskHtml = (task, isOwner) => {
         `}
         <div class="flex-grow min-w-0">
           <div class="flex justify-between items-start min-h-[28px]">
-                <div class="flex items-center gap-2 group/title ${!task.isDefault && isOwner ? 'cursor-pointer' : ''}" ${!task.isDefault && isOwner ? `data-action="edit-task" data-id="${task.id}" data-field="text"` : ''}>
+                <div class="flex items-center gap-2 group/title ${isOwner ? 'cursor-pointer' : ''}" ${isOwner ? `data-action="edit-task" data-id="${task.id}" data-field="text"` : ''}>
                   <h4 class="font-bold text-[#4E342E] leading-tight ${isCompleted && task.type === 'simple' ? 'line-through text-[#A1887F]' : ''}">${task.text}</h4>
-                  ${!task.isDefault && isOwner ? '<i data-lucide="edit-3" class="w-3.5 h-3.5 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/title:opacity-100"></i>' : ''}
+                  ${isOwner ? '<i data-lucide="edit-3" class="w-3.5 h-3.5 text-[#D7CCC8] hover:text-[#8D6E63] opacity-0 group-hover/title:opacity-100"></i>' : ''}
                 </div>
                 ${isOwner ? `<button data-action="delete-task" data-id="${task.id}" class="p-1.5 -mt-1.5 -mr-2 text-[#D7CCC8] hover:text-red-400 hover:bg-[#EFEBE9] rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
               </div>
@@ -736,19 +736,9 @@ document.addEventListener('click', async (e) => {
           const task = state.tasks.find(t => String(t.id) === String(id));
           const field = target.dataset.field;
           if (task) {
-             // 如果點擊的是標題 (text)
-             if (field === 'text') {
-                if (task.isDefault) {
-                   // 預設的每日任務不開放修改標題
-                   return; 
-                }
-                if (task.owner !== state.identity) {
-                   // 臨時任務的標題，只能由任務擁有人自己修改
-                   return; 
-                }
+             if (field === 'text' && task.owner !== state.identity) {
+                return; // 標題只能由擁有人自己修改 (不再阻擋預設任務)
              }
-             
-             // 如果是點擊備註 (note)，沒有任何權限阻擋，雙方皆可互相修改！
              window.openEditModal(task.id, field, null, task[field] || '', field === 'text' ? '修改任務名稱' : '互相留言給對方');
           }
         }
@@ -796,7 +786,7 @@ document.addEventListener('click', async (e) => {
           let injectedCount = 0;
           
           for (const task of tasksToInject) {
-              if (!existingTasks.some(t => t.text === task.text)) {
+              if (!existingTasks.some(t => (t.originalText || t.text) === task.text)) {
                   await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks'), { 
                       ...task, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: todayStr 
                   });
@@ -867,8 +857,14 @@ document.addEventListener('click', async (e) => {
          const task = state.tasks.find(t => String(t.id) === String(id));
          if (task) {
            let updateData = {};
-           if (type === 'text' || type === 'note') {
-             updateData[type] = newVal;
+           if (type === 'text') {
+             updateData.text = newVal;
+             // 【防呆機制】如果改的是預設任務，幫它偷偷記下原本的名字，避免被系統重複生成
+             if (task.isDefault && !task.originalText) {
+                updateData.originalText = task.text;
+             }
+           } else if (type === 'note') {
+             updateData.note = newVal;
            } else if (type === 'checklist-item') {
              updateData.checklistItems = task.checklistItems.map(i => String(i.id) === String(cid) ? { ...i, label: newVal } : i);
            } else if (type === 'choice-item') {

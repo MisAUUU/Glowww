@@ -245,32 +245,32 @@ const updateDailyRecords = async () => {
 };
 
 // --- 客製化 Modal (升級版：支援右上角叉叉與點擊背景關閉) ---
+    // 1. 系統提示 Modal
     window.showAlert = (message) => {
         const html = `
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" data-action="close-modal">
-                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center" onclick="event.stopPropagation()">
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
+                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center">
                     <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                        <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
                     </button>
-                    
                     <p class="text-[#5D4037] font-bold mt-4 mb-6">${message}</p>
                     <button data-action="close-modal" class="w-full py-3 bg-[#5D4037] text-white rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors">確定</button>
                 </div>
             </div>
         `;
         document.getElementById('modals').innerHTML = html;
-        lucide.createIcons(); // ⚠️這行很重要，這樣叉叉的圖示才會順利畫出來！
+        lucide.createIcons();
     };
 
+    // 2. 確認視窗 Modal
     window.showConfirm = (message, onConfirm) => {
         window._confirmCallback = onConfirm;
         const html = `
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" data-action="close-modal">
-                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center" onclick="event.stopPropagation()">
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
+                <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up text-center">
                     <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                        <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
                     </button>
-
                     <p class="text-[#5D4037] font-bold mt-4 mb-6 whitespace-pre-line">${message}</p>
                     <div class="flex gap-3">
                         <button data-action="close-modal" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm hover:bg-[#D7CCC8] transition-colors">取消</button>
@@ -280,8 +280,9 @@ const updateDailyRecords = async () => {
             </div>
         `;
         document.getElementById('modals').innerHTML = html;
-        lucide.createIcons(); // 確保圖示正常顯示
+        lucide.createIcons();
     };
+
 
 const renderLogin = () => `
   <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
@@ -821,167 +822,179 @@ document.addEventListener('click', async (e) => {
 });
 
 // --- Modal Submit 與資料庫更新邏輯 ---
-window._editModalState = { id: null, type: null, cid: null, value: '' };
-
-window.openEditModal = (id, type, cid, currentValue, title) => {
-  window._editModalState = { id, type, cid, value: currentValue };
-  const safeValue = currentValue.replace(/"/g, '&quot;');
-  const html = `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in">
-      <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] slide-up">
-        <div class="p-5 border-b border-[#EFEBE9] flex justify-between items-center bg-white">
-          <h3 class="text-lg font-bold text-[#5D4037] flex items-center gap-2"><i data-lucide="edit-3" class="w-5 h-5 text-[#8D6E63]"></i>${title}</h3>
-          <button data-action="close-modal" class="p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8]"><i data-lucide="x" class="w-4 h-4"></i></button>
-        </div>
-        <form onsubmit="submitEdit(event)" class="p-6">
-          <input type="text" id="edit-input-val" value="${safeValue}" class="w-full bg-white border border-[#D7CCC8] rounded-xl p-3 text-[#4E342E] focus:outline-none focus:border-[#8D6E63] shadow-inner" autocomplete="off" />
-          <div class="pt-6 flex gap-3">
-            <button type="button" data-action="close-modal" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm hover:bg-[#D7CCC8] transition-colors">取消</button>
-            <button type="submit" class="flex-1 py-3 bg-[#5D4037] text-[#FDF8F3] rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors">確認儲存</button>
+// 3. 修改文字/備註 Modal
+    window._editModalState = { id: null, type: null, cid: null, value: '' };
+    window.openEditModal = (id, type, cid, currentValue, title) => {
+      window._editModalState = { id, type, cid, value: currentValue };
+      const safeValue = currentValue.replace(/"/g, '&quot;');
+      const html = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
+          <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] slide-up">
+            <div class="p-5 border-b border-[#EFEBE9] flex justify-between items-center bg-white">
+              <h3 class="text-lg font-bold text-[#5D4037] flex items-center gap-2"><i data-lucide="edit-3" class="w-5 h-5 text-[#8D6E63]"></i>${title}</h3>
+              <button data-action="close-modal" class="p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+                 <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+              </button>
+            </div>
+            <form onsubmit="submitEdit(event)" class="p-6">
+              <input type="text" id="edit-input-val" value="${safeValue}" class="w-full bg-white border border-[#D7CCC8] rounded-xl p-3 text-[#4E342E] focus:outline-none focus:border-[#8D6E63] shadow-inner" autocomplete="off" />
+              <div class="pt-6 flex gap-3">
+                <button type="button" data-action="close-modal" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm hover:bg-[#D7CCC8] transition-colors">取消</button>
+                <button type="submit" class="flex-1 py-3 bg-[#5D4037] text-[#FDF8F3] rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors">確認儲存</button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-    </div>
-  `;
-  document.getElementById('modals').innerHTML = html;
-  lucide.createIcons();
-  setTimeout(() => {
-     const input = document.getElementById('edit-input-val');
-     if(input) { input.focus(); input.select(); }
-  }, 50);
-};
-
-window.submitEdit = async (e) => {
-  e.preventDefault();
-  const { id, type, cid } = window._editModalState;
-  const newVal = document.getElementById('edit-input-val').value.trim();
-  if (!newVal) return;
-
-  if (type === 'motto') {
-     const currentMonthKey = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`;
-     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_settings', 'config'), { motto: { text: newVal, editCount: (state.mottoData.editCount || 0) + 1, monthKey: currentMonthKey } }, { merge: true });
-  } else {
-     const task = state.tasks.find(t => String(t.id) === String(id));
-     if (task) {
-       let updateData = {};
-       if (type === 'text' || type === 'note') {
-         updateData[type] = newVal;
-       } else if (type === 'checklist-item') {
-         updateData.checklistItems = task.checklistItems.map(i => String(i.id) === String(cid) ? { ...i, label: newVal } : i);
-       } else if (type === 'choice-item') {
-         updateData.choices = task.choices.map(c => String(c.id) === String(cid) ? { ...c, label: newVal } : c);
-       }
-       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', id), updateData);
-     }
-  }
-  document.getElementById('modals').innerHTML = '';
-};
-
-window.submitAddTask = async (e) => {
-   e.preventDefault();
-   const title = document.getElementById('new-task-title').value.trim();
-   if(!title) return;
-   const note = document.getElementById('new-task-note').value;
-   const taskData = { text: title, note: note, type: 'simple', completed: false, owner: state.identity, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: getLogicDateString(), order: 100, isDefault: false };
-   await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks'), taskData);
-   document.getElementById('modals').innerHTML = '';
-};
-
-const getAddTaskModalHtml = () => `
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in">
-    <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-[#D7CCC8] slide-up">
-      <div class="p-5 border-b border-[#EFEBE9] flex justify-between items-center bg-white">
-        <h3 class="text-lg font-bold text-[#5D4037] flex items-center gap-2"><i data-lucide="plus" class="w-5 h-5 text-[#8D6E63]"></i>新增臨時任務</h3>
-        <button data-action="close-modal" class="p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8]"><i data-lucide="x" class="w-4 h-4"></i></button>
-      </div>
-      <form onsubmit="submitAddTask(event)" class="p-6">
-        <div class="space-y-4">
-          <div><label class="block text-xs font-bold text-[#8D6E63] mb-2">任務名稱</label><input id="new-task-title" type="text" placeholder="例如：買牛奶" class="w-full bg-white border border-[#D7CCC8] rounded-xl p-3 text-[#4E342E] focus:outline-none focus:border-[#8D6E63]" required autofocus /></div>
-          <div><label class="block text-xs font-bold text-[#8D6E63] mb-2">任務備註 (選填)</label><textarea id="new-task-note" rows="2" placeholder="寫點什麼..." class="w-full bg-white border border-[#D7CCC8] rounded-xl p-3 text-[#4E342E] focus:outline-none focus:border-[#8D6E63] resize-none"></textarea></div>
         </div>
-        <div class="pt-6 flex gap-3">
-          <button type="button" data-action="close-modal" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm">取消</button>
-          <button type="submit" class="flex-1 py-3 bg-[#5D4037] text-[#FDF8F3] rounded-xl font-bold text-sm">建立</button>
-        </div>
-      </form>
-    </div>
-  </div>
-`;
+      `;
+      document.getElementById('modals').innerHTML = html;
+      lucide.createIcons();
+      setTimeout(() => {
+         const input = document.getElementById('edit-input-val');
+         if(input) { input.focus(); input.select(); }
+      }, 50);
+    };
 
-window.setBankModalState = (key, val) => { window._bankModalState[key] = val; updateBankModalHtml(); };
-window.submitAddBank = async () => {
-   const { targetUser, type, mode, amount, note } = window._bankModalState;
-   let finalAmount = parseInt(amount);
-   if (isNaN(finalAmount)) return;
-   if (mode === 'sub') finalAmount = -finalAmount;
-   
-   await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'challenge_bank_records'), { who: targetUser, type: type, amount: finalAmount, note: document.getElementById('bank-note').value, date: getLogicDateString(), createdAt: Date.now() });
-   document.getElementById('modals').innerHTML = '';
-};
+    window.submitEdit = async (e) => {
+      e.preventDefault();
+      const { id, type, cid } = window._editModalState;
+      const newVal = document.getElementById('edit-input-val').value.trim();
+      if (!newVal) return;
 
-const updateBankModalHtml = () => {
-   const s = window._bankModalState;
-   const html = `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in">
-      <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl border border-[#D7CCC8] p-5 slide-up">
-         <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-[#5D4037]">新增銀行紀錄</h3><button data-action="close-modal"><i data-lucide="x" class="w-4 h-4 text-[#8D6E63]"></i></button></div>
-         <div class="space-y-4">
-            <div class="flex gap-2 bg-[#EFEBE9] p-1 rounded-xl">
-              <button onclick="setBankModalState('mode', 'add')" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${s.mode === 'add' ? 'bg-white text-red-800 shadow-sm' : 'text-[#A1887F]'}"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 增加懲罰</button>
-              <button onclick="setBankModalState('mode', 'sub')" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${s.mode === 'sub' ? 'bg-white text-green-700 shadow-sm' : 'text-[#A1887F]'}"><i data-lucide="trending-down" class="w-3.5 h-3.5"></i> 抵銷/償還</button>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="setBankModalState('targetUser', '大叔'); setBankModalState('type', 'money'); setBankModalState('amount', '50');" class="flex-1 py-2 rounded-lg text-sm font-bold border ${s.targetUser === '大叔' ? 'bg-[#5D4037] text-white border-[#5D4037]' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">大叔</button>
-              <button onclick="setBankModalState('targetUser', '寶寶'); setBankModalState('type', 'kiss'); setBankModalState('amount', '10');" class="flex-1 py-2 rounded-lg text-sm font-bold border ${s.targetUser === '寶寶' ? 'bg-[#5D4037] text-white border-[#5D4037]' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">寶寶</button>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="setBankModalState('type', 'money')" class="flex-1 py-2 rounded-lg text-xs font-bold border ${s.type === 'money' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">💰 金額</button>
-              <button onclick="setBankModalState('type', 'kiss')" class="flex-1 py-2 rounded-lg text-xs font-bold border ${s.type === 'kiss' ? 'bg-pink-100 text-pink-800 border-pink-300' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">💋 親親</button>
-            </div>
-            <div><label class="block text-xs font-bold text-[#8D6E63] mb-1">${s.mode === 'add' ? '增加數量' : (s.type === 'money' ? '償還金額' : '已親次數')} (${s.type === 'money' ? '元' : '下'})</label><input type="number" onchange="setBankModalState('amount', this.value)" value="${s.amount}" class="w-full p-2 rounded-lg border border-[#D7CCC8] text-[#5D4037] focus:outline-none"/></div>
-            <div><label class="block text-xs font-bold text-[#8D6E63] mb-1">原因 (選填)</label><input id="bank-note" type="text" placeholder="${s.mode === 'add' ? '例如：沒喝水' : '例如：請吃飯 / 已兌現'}" class="w-full p-2 rounded-lg border border-[#D7CCC8] text-[#5D4037] focus:outline-none"/></div>
-            <button onclick="submitAddBank()" class="w-full py-3 text-white rounded-xl font-bold mt-2 ${s.mode === 'add' ? 'bg-[#5D4037]' : 'bg-green-600'}">${s.mode === 'add' ? '確認新增懲罰' : '確認抵銷'}</button>
-         </div>
-      </div>
-    </div>
-   `;
-   document.getElementById('modals').innerHTML = html;
-   lucide.createIcons();
-};
+      if (type === 'motto') {
+         const currentMonthKey = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`;
+         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_settings', 'config'), { motto: { text: newVal, editCount: (state.mottoData.editCount || 0) + 1, monthKey: currentMonthKey } }, { merge: true });
+      } else {
+         const task = state.tasks.find(t => String(t.id) === String(id));
+         if (task) {
+           let updateData = {};
+           if (type === 'text' || type === 'note') {
+             updateData[type] = newVal;
+           } else if (type === 'checklist-item') {
+             updateData.checklistItems = task.checklistItems.map(i => String(i.id) === String(cid) ? { ...i, label: newVal } : i);
+           } else if (type === 'choice-item') {
+             updateData.choices = task.choices.map(c => String(c.id) === String(cid) ? { ...c, label: newVal } : c);
+           }
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', id), updateData);
+         }
+      }
+      document.getElementById('modals').innerHTML = '';
+    };
 
-const openDayDetailModal = (dateStr, record) => {
-  const [year, month, day] = dateStr.split('-');
-  const babyMissed = record?.babyDetails?.missed || [];
-  const uncleMissed = record?.uncleDetails?.missed || [];
-  const babyTotal = record?.babyDetails?.total || 0;
-  const uncleTotal = record?.uncleDetails?.total || 0;
-  const hasRecord = !!record;
-  const babyAllDone = babyTotal > 0 && babyMissed.length === 0;
-  const uncleAllDone = uncleTotal > 0 && uncleMissed.length === 0;
+    window.submitAddTask = async (e) => {
+       e.preventDefault();
+       const title = document.getElementById('new-task-title').value.trim();
+       if(!title) return;
+       const note = document.getElementById('new-task-note').value;
+       const taskData = { text: title, note: note, type: 'simple', completed: false, owner: state.identity, createdAt: Date.now(), createdByUid: state.user.uid, lastUpdatedDate: getLogicDateString(), order: 100, isDefault: false };
+       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks'), taskData);
+       document.getElementById('modals').innerHTML = '';
+    };
 
-  const html = `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" data-action="close-modal">
-      <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up" onclick="event.stopPropagation()">
-        <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63]"><i data-lucide="x" class="w-4 h-4"></i></button>
-        <div class="text-center mb-6"><h3 class="text-xl font-bold text-[#5D4037]">${year}年${month}月${day}日</h3><p class="text-xs text-[#A1887F] mt-1">當日執行狀況</p></div>
-        ${!hasRecord ? `<div class="text-center py-8 text-[#A1887F] bg-white rounded-2xl border border-dashed border-[#D7CCC8]"><p>這一天沒有挑戰紀錄喔 😴</p></div>` : `
-          <div class="space-y-4">
-            <div class="bg-white p-4 rounded-2xl border border-[#FFE0B2] shadow-sm">
-               <div class="flex justify-between items-center mb-2 border-b border-[#FFF3E0] pb-2"><h4 class="font-bold text-[#8D6E63] flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> 寶寶</h4>${babyAllDone ? '<span class="text-lg">💅</span>' : ''}</div>
-               ${babyTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : babyAllDone ? '<p class="text-xs text-[#8D6E63] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太棒了！</p>' : `<div><p class="text-[10px] text-[#A1887F] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${babyMissed.map(t => `<li class="text-xs text-[#8D6E63]">${t}</li>`).join('')}</ul></div>`}
-            </div>
-            <div class="bg-white p-4 rounded-2xl border border-[#E0E0E0] shadow-sm">
-               <div class="flex justify-between items-center mb-2 border-b border-[#F5F5F5] pb-2"><h4 class="font-bold text-[#616161] flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4"></i> 大叔</h4>${uncleAllDone ? '<span class="text-lg">💋</span>' : ''}</div>
-               ${uncleTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : uncleAllDone ? '<p class="text-xs text-[#616161] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太強了！</p>' : `<div><p class="text-[10px] text-[#9E9E9E] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${uncleMissed.map(t => `<li class="text-xs text-[#757575]">${t}</li>`).join('')}</ul></div>`}
-            </div>
+    // 4. 新增臨時任務 Modal
+    const getAddTaskModalHtml = () => `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
+        <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-[#D7CCC8] slide-up">
+          <div class="p-5 border-b border-[#EFEBE9] flex justify-between items-center bg-white">
+            <h3 class="text-lg font-bold text-[#5D4037] flex items-center gap-2"><i data-lucide="plus" class="w-5 h-5 text-[#8D6E63]"></i>新增臨時任務</h3>
+            <button data-action="close-modal" class="p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+               <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+            </button>
           </div>
-        `}
+          <form onsubmit="submitAddTask(event)" class="p-6">
+            <div class="space-y-4">
+              <div><label class="block text-xs font-bold text-[#8D6E63] mb-2">任務名稱</label><input id="new-task-title" type="text" placeholder="例如：買牛奶" class="w-full bg-white border border-[#D7CCC8] rounded-xl p-3 text-[#4E342E] focus:outline-none focus:border-[#8D6E63]" required autofocus /></div>
+              <div><label class="block text-xs font-bold text-[#8D6E63] mb-2">任務備註 (選填)</label><textarea id="new-task-note" rows="2" placeholder="寫點什麼..." class="w-full bg-white border border-[#D7CCC8] rounded-xl p-3 text-[#4E342E] focus:outline-none focus:border-[#8D6E63] resize-none"></textarea></div>
+            </div>
+            <div class="pt-6 flex gap-3">
+              <button type="button" data-action="close-modal" class="flex-1 py-3 bg-[#EFEBE9] text-[#8D6E63] rounded-xl font-bold text-sm hover:bg-[#D7CCC8] transition-colors">取消</button>
+              <button type="submit" class="flex-1 py-3 bg-[#5D4037] text-[#FDF8F3] rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors">建立</button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
-  `;
-  document.getElementById('modals').innerHTML = html;
-  lucide.createIcons();
-};
+    `;
+
+    window.setBankModalState = (key, val) => { window._bankModalState[key] = val; updateBankModalHtml(); };
+    window.submitAddBank = async () => {
+       const { targetUser, type, mode, amount, note } = window._bankModalState;
+       let finalAmount = parseInt(amount);
+       if (isNaN(finalAmount)) return;
+       if (mode === 'sub') finalAmount = -finalAmount;
+       
+       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'challenge_bank_records'), { who: targetUser, type: type, amount: finalAmount, note: document.getElementById('bank-note').value, date: getLogicDateString(), createdAt: Date.now() });
+       document.getElementById('modals').innerHTML = '';
+    };
+
+    // 5. 叔寶銀行 Modal
+    const updateBankModalHtml = () => {
+       const s = window._bankModalState;
+       const html = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
+          <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up">
+             <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+                <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+             </button>
+             <div class="mb-5 pr-6"><h3 class="font-bold text-[#5D4037]">新增銀行紀錄</h3></div>
+             <div class="space-y-4">
+                <div class="flex gap-2 bg-[#EFEBE9] p-1 rounded-xl">
+                  <button onclick="setBankModalState('mode', 'add')" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${s.mode === 'add' ? 'bg-white text-red-800 shadow-sm' : 'text-[#A1887F]'}"><i data-lucide="trending-up" class="w-3.5 h-3.5 pointer-events-none"></i> 增加懲罰</button>
+                  <button onclick="setBankModalState('mode', 'sub')" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${s.mode === 'sub' ? 'bg-white text-green-700 shadow-sm' : 'text-[#A1887F]'}"><i data-lucide="trending-down" class="w-3.5 h-3.5 pointer-events-none"></i> 抵銷/償還</button>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="setBankModalState('targetUser', '大叔'); setBankModalState('type', 'money'); setBankModalState('amount', '50');" class="flex-1 py-2 rounded-lg text-sm font-bold border ${s.targetUser === '大叔' ? 'bg-[#5D4037] text-white border-[#5D4037]' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">大叔</button>
+                  <button onclick="setBankModalState('targetUser', '寶寶'); setBankModalState('type', 'kiss'); setBankModalState('amount', '10');" class="flex-1 py-2 rounded-lg text-sm font-bold border ${s.targetUser === '寶寶' ? 'bg-[#5D4037] text-white border-[#5D4037]' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">寶寶</button>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="setBankModalState('type', 'money')" class="flex-1 py-2 rounded-lg text-xs font-bold border ${s.type === 'money' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">💰 金額</button>
+                  <button onclick="setBankModalState('type', 'kiss')" class="flex-1 py-2 rounded-lg text-xs font-bold border ${s.type === 'kiss' ? 'bg-pink-100 text-pink-800 border-pink-300' : 'bg-white text-[#A1887F] border-[#D7CCC8]'}">💋 親親</button>
+                </div>
+                <div><label class="block text-xs font-bold text-[#8D6E63] mb-1">${s.mode === 'add' ? '增加數量' : (s.type === 'money' ? '償還金額' : '已親次數')} (${s.type === 'money' ? '元' : '下'})</label><input type="number" onchange="setBankModalState('amount', this.value)" value="${s.amount}" class="w-full p-2 rounded-lg border border-[#D7CCC8] text-[#5D4037] focus:outline-none"/></div>
+                <div><label class="block text-xs font-bold text-[#8D6E63] mb-1">原因 (選填)</label><input id="bank-note" type="text" placeholder="${s.mode === 'add' ? '例如：沒喝水' : '例如：請吃飯 / 已兌現'}" class="w-full p-2 rounded-lg border border-[#D7CCC8] text-[#5D4037] focus:outline-none"/></div>
+                <button onclick="submitAddBank()" class="w-full py-3 text-white rounded-xl font-bold mt-2 ${s.mode === 'add' ? 'bg-[#5D4037]' : 'bg-green-600'}">${s.mode === 'add' ? '確認新增' : '確認抵銷'}</button>
+             </div>
+          </div>
+        </div>
+       `;
+       document.getElementById('modals').innerHTML = html;
+       lucide.createIcons();
+    };
+
+    // 6. 點擊日曆查看詳情 Modal
+    const openDayDetailModal = (dateStr, record) => {
+      const [year, month, day] = dateStr.split('-');
+      const babyMissed = record?.babyDetails?.missed || [];
+      const uncleMissed = record?.uncleDetails?.missed || [];
+      const babyTotal = record?.babyDetails?.total || 0;
+      const uncleTotal = record?.uncleDetails?.total || 0;
+      const hasRecord = !!record;
+      const babyAllDone = babyTotal > 0 && babyMissed.length === 0;
+      const uncleAllDone = uncleTotal > 0 && uncleMissed.length === 0;
+
+      const html = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
+          <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#D7CCC8] p-6 relative slide-up">
+            <button data-action="close-modal" class="absolute top-4 right-4 p-2 bg-[#EFEBE9] rounded-full text-[#8D6E63] hover:bg-[#D7CCC8] transition-colors">
+               <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+            </button>
+            <div class="text-center mb-6 mt-2"><h3 class="text-xl font-bold text-[#5D4037]">${year}年${month}月${day}日</h3><p class="text-xs text-[#A1887F] mt-1">當日執行狀況</p></div>
+            ${!hasRecord ? `<div class="text-center py-8 text-[#A1887F] bg-white rounded-2xl border border-dashed border-[#D7CCC8]"><p>這一天沒有挑戰紀錄喔 😴</p></div>` : `
+              <div class="space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-[#FFE0B2] shadow-sm">
+                   <div class="flex justify-between items-center mb-2 border-b border-[#FFF3E0] pb-2"><h4 class="font-bold text-[#8D6E63] flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> 寶寶</h4>${babyAllDone ? '<span class="text-lg">💅</span>' : ''}</div>
+                   ${babyTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : babyAllDone ? '<p class="text-xs text-[#8D6E63] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太棒了！</p>' : `<div><p class="text-[10px] text-[#A1887F] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${babyMissed.map(t => `<li class="text-xs text-[#8D6E63]">${t}</li>`).join('')}</ul></div>`}
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-[#E0E0E0] shadow-sm">
+                   <div class="flex justify-between items-center mb-2 border-b border-[#F5F5F5] pb-2"><h4 class="font-bold text-[#616161] flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4"></i> 大叔</h4>${uncleAllDone ? '<span class="text-lg">💋</span>' : ''}</div>
+                   ${uncleTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : uncleAllDone ? '<p class="text-xs text-[#616161] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太強了！</p>' : `<div><p class="text-[10px] text-[#9E9E9E] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${uncleMissed.map(t => `<li class="text-xs text-[#757575]">${t}</li>`).join('')}</ul></div>`}
+                </div>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+      document.getElementById('modals').innerHTML = html;
+      lucide.createIcons();
+    };
 
 // 啟動應用程式
 initApp();

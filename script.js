@@ -79,7 +79,13 @@ const DEFAULT_UNCLE_TASKS = [
 
 // --- 初始化與連線監聽 ---
     const initApp = async () => {
-      onAuthStateChanged(auth, (user) => {
+      onAuthStateChanged(auth, async (user) => {
+        // 👻 驅魔儀式：如果發現是以前舊的「匿名帳號」，強制登出！
+        if (user && user.isAnonymous) {
+            await signOut(auth);
+            return;
+        }
+
         state.user = user;
         if (user) {
           // 如果有登入 Google，才開始載入資料

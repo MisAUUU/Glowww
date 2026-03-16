@@ -23,7 +23,7 @@ body {
 .progress-animate {
   animation: fillWidth 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-
+ 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .progress-ring__circle { transition: stroke-dashoffset 0.5s ease-out; }

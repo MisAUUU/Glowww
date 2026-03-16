@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, setDoc, getDocs, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- Firebase 連線設定 ---
@@ -78,24 +78,23 @@ const DEFAULT_UNCLE_TASKS = [
 ];
 
 // --- 初始化與連線監聽 ---
-const initApp = async () => {
-  try {
-    await signInAnonymously(auth);
-  } catch (err) { 
-    console.error("Auth Error", err); 
-    document.getElementById('app').innerHTML = `<div class="flex items-center justify-center min-h-screen text-red-500 font-bold p-6 text-center">無法登入資料庫，請檢查 Firebase 驗證設定！<br>錯誤訊息：${err.message}</div>`;
-  }
-
-  onAuthStateChanged(auth, (user) => {
-    state.user = user;
-    if (user && !state.isInitialized) {
-      state.isInitialized = true;
-      setupListeners();
-      checkAndInjectDefaults();
-    }
-    scheduleRender();
-  });
-};
+    const initApp = async () => {
+      onAuthStateChanged(auth, (user) => {
+        state.user = user;
+        if (user) {
+          // 如果有登入 Google，才開始載入資料
+          if (!state.isInitialized) {
+            state.isInitialized = true;
+            setupListeners();
+            checkAndInjectDefaults();
+          }
+        } else {
+          // 如果沒登入，清空初始化狀態
+          state.isInitialized = false; 
+        }
+        scheduleRender();
+      });
+    };
 
 let unsubTasks, unsubRecords, unsubBank, unsubConfig;
 const setupListeners = () => {
@@ -288,50 +287,53 @@ const updateDailyRecords = async () => {
     };
 
 
-const renderLogin = () => `
-  <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
-    <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
-    <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
-    <div class="z-10 w-full max-w-md text-center">
-      <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
-        <i data-lucide="heart" class="w-8 h-8 text-[#5D4037] animate-pulse fill-[#5D4037]"></i>
-      </div>
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-2 tracking-wide whitespace-nowrap">${new Date().getFullYear()} ${new Date().getMonth() + 1}月 每日目標挑戰</h1>
-      <p class="text-[#8D6E63] mb-12">一起成長嗷嗷嗷</p>
-      <div class="flex gap-4 justify-center w-full px-2">
-        <button data-action="set-identity" data-id="寶寶" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
-          <div class="w-16 h-16 bg-[#D7CCC8] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="sparkles" class="text-[#5D4037] w-8 h-8"></i></div>
-          <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是寶寶</h3><p class="text-xs text-[#8D6E63] leading-relaxed">可愛擔當<br/>認真生活</p></div>
-        </button>
-        <button data-action="set-identity" data-id="大叔" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
-          <div class="w-16 h-16 bg-[#BCAAA4] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="heart" class="text-[#3E2723] fill-[#3E2723] w-8 h-8"></i></div>
-          <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是大叔</h3><p class="text-xs text-[#8D6E63] leading-relaxed">穩重擔當<br/>努力工作</p></div>
-        </button>
-      </div>
-    </div>
-  </div>
-`;
-
-const renderProgressBar = (label, total, completed, colorClass, iconName) => {
-  const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-  const prevPerc = prevProgressState.get(label) ?? 0;
-  prevProgressState.set(label, percentage);
-
-  return `
-    <div class="mb-4">
-      <div class="flex justify-between items-end mb-1">
-        <div class="flex items-center gap-2 text-stone-700 font-bold">
-          <i data-lucide="${iconName}" class="w-[18px] h-[18px] text-[#8D6E63] ${iconName==='heart'?'fill-[#8D6E63]':''}"></i>
-          <span>${label}</span>
+const renderLogin = () => {
+      // 步驟一：如果還沒登入 Google，顯示 Google 登入按鈕
+      if (!state.user) {
+        return `
+          <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
+            <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
+            <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
+            <div class="z-10 w-full max-w-md text-center">
+              <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
+                <i data-lucide="lock" class="w-8 h-8 text-[#5D4037]"></i>
+              </div>
+              <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-4 tracking-wide">專屬空間登入</h1>
+              <p class="text-[#8D6E63] mb-12">請先使用 Google 帳號驗證身分嗷嗷</p>
+              <button data-action="google-login" class="w-full py-4 bg-white border border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-sm hover:shadow-md font-bold text-[#5D4037]">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
+                使用 Google 帳號登入
+              </button>
+            </div>
+          </div>
+        `;
+      }
+      
+      // 步驟二：登入了 Google，但還沒選擇身分，顯示身分選單
+      return `
+        <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
+          <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
+          <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
+          <div class="z-10 w-full max-w-md text-center">
+            <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
+              <i data-lucide="heart" class="w-8 h-8 text-[#5D4037] animate-pulse fill-[#5D4037]"></i>
+            </div>
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-2 tracking-wide whitespace-nowrap">${new Date().getFullYear()} ${new Date().getMonth() + 1}月 每日目標挑戰</h1>
+            <p class="text-[#8D6E63] mb-12">一起成長嗷嗷嗷</p>
+            <div class="flex gap-4 justify-center w-full px-2">
+              <button data-action="set-identity" data-id="寶寶" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
+                <div class="w-16 h-16 bg-[#D7CCC8] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="sparkles" class="text-[#5D4037] w-8 h-8"></i></div>
+                <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是寶寶</h3><p class="text-xs text-[#8D6E63] leading-relaxed">可愛擔當<br/>認真生活</p></div>
+              </button>
+              <button data-action="set-identity" data-id="大叔" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
+                <div class="w-16 h-16 bg-[#BCAAA4] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="heart" class="text-[#3E2723] fill-[#3E2723] w-8 h-8"></i></div>
+                <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是大叔</h3><p class="text-xs text-[#8D6E63] leading-relaxed">穩重擔當<br/>努力工作</p></div>
+              </button>
+            </div>
+          </div>
         </div>
-        <span class="text-xs font-medium text-stone-500">${completed}/${total} (${percentage}%)</span>
-      </div>
-      <div class="w-full h-4 bg-stone-200 rounded-full overflow-hidden p-0.5">
-        <div class="h-full rounded-full progress-animate ${colorClass}" style="--start-w: ${prevPerc}%; --end-w: ${percentage}%; width: ${percentage}%"></div>
-      </div>
-    </div>
-  `;
-};
+      `;
+    };
 
 const renderDashboard = () => {
   const partnerName = state.identity === '寶寶' ? '大叔' : '寶寶';
@@ -784,7 +786,7 @@ const scheduleRender = () => {
     render();
   });
 };
-
+ 
 const render = () => {
       const appDiv = document.getElementById('app');
       if (!state.identity) {
@@ -817,15 +819,28 @@ document.addEventListener('click', async (e) => {
   }
 
   try {
-    if (action === 'set-identity') {
+    if (action === 'google-login') {
+        const provider = new GoogleAuthProvider();
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (err) {
+            console.error(err);
+            window.showAlert("登入失敗，請重試！<br>" + err.message);
+        }
+    }
+    else if (action === 'set-identity') {
       state.identity = target.dataset.id;
       localStorage.setItem('task_app_identity', state.identity);
       scheduleRender();
     } 
     else if (action === 'logout') {
-      state.identity = null;
-      localStorage.removeItem('task_app_identity');
-      scheduleRender();
+      window.showConfirm("確定要登出這個裝置嗎？", async () => {
+          await signOut(auth); // 徹底登出 Google 帳號
+          state.identity = null;
+          state.user = null;
+          localStorage.removeItem('task_app_identity');
+          scheduleRender();
+      });
     }
     else if (action === 'set-tab') {
       state.activeTab = target.dataset.tab;

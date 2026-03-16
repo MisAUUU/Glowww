@@ -288,52 +288,50 @@ const updateDailyRecords = async () => {
 
 
 const renderLogin = () => {
-      // 步驟一：如果還沒登入 Google，顯示 Google 登入按鈕
-      if (!state.user) {
-        return `
-          <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
-            <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
-            <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
-            <div class="z-10 w-full max-w-md text-center">
-              <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
-                <i data-lucide="lock" class="w-8 h-8 text-[#5D4037]"></i>
-              </div>
-              <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-4 tracking-wide">專屬空間登入</h1>
-              <p class="text-[#8D6E63] mb-12">請先使用 Google 帳號驗證身分嗷嗷</p>
-              <button data-action="google-login" class="w-full py-4 bg-white border border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-sm hover:shadow-md font-bold text-[#5D4037]">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
-                使用 Google 帳號登入
-              </button>
-            </div>
+  if (!state.user) {
+    return `
+      <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
+        <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
+        <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
+        <div class="z-10 w-full max-w-md text-center">
+          <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
+            <i data-lucide="lock" class="w-8 h-8 text-[#5D4037]"></i>
           </div>
-        `;
-      }
-      
-      // 步驟二：登入了 Google，但還沒選擇身分，顯示身分選單
-      return `
-        <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
-          <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
-          <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
-          <div class="z-10 w-full max-w-md text-center">
-            <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
-              <i data-lucide="heart" class="w-8 h-8 text-[#5D4037] animate-pulse fill-[#5D4037]"></i>
-            </div>
-            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-2 tracking-wide whitespace-nowrap">${new Date().getFullYear()} ${new Date().getMonth() + 1}月 每日目標挑戰</h1>
-            <p class="text-[#8D6E63] mb-12">一起成長嗷嗷嗷</p>
-            <div class="flex gap-4 justify-center w-full px-2">
-              <button data-action="set-identity" data-id="寶寶" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
-                <div class="w-16 h-16 bg-[#D7CCC8] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="sparkles" class="text-[#5D4037] w-8 h-8"></i></div>
-                <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是寶寶</h3><p class="text-xs text-[#8D6E63] leading-relaxed">可愛擔當<br/>認真生活</p></div>
-              </button>
-              <button data-action="set-identity" data-id="大叔" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
-                <div class="w-16 h-16 bg-[#BCAAA4] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="heart" class="text-[#3E2723] fill-[#3E2723] w-8 h-8"></i></div>
-                <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是大叔</h3><p class="text-xs text-[#8D6E63] leading-relaxed">穩重擔當<br/>努力工作</p></div>
-              </button>
-            </div>
-          </div>
+          <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-4 tracking-wide">專屬空間登入</h1>
+          <p class="text-[#8D6E63] mb-12">請先使用 Google 帳號驗證身分嗷嗷</p>
+          <button data-action="google-login" class="w-full py-4 bg-white border border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-sm hover:shadow-md font-bold text-[#5D4037]">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
+            使用 Google 帳號登入
+          </button>
         </div>
-      `;
-    };
+      </div>
+    `;
+  }
+  
+  return `
+    <div class="flex flex-col items-center justify-center p-6 relative overflow-hidden min-h-screen fade-in">
+      <div class="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[#D7CCC8] rounded-full opacity-50 blur-2xl"></div>
+      <div class="absolute bottom-[-20px] left-[-20px] w-60 h-60 bg-[#EFEBE9] rounded-full opacity-30 blur-3xl"></div>
+      <div class="z-10 w-full max-w-md text-center">
+        <div class="mb-8 inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm border border-[#EFEBE9]">
+          <i data-lucide="heart" class="w-8 h-8 text-[#5D4037] animate-pulse fill-[#5D4037]"></i>
+        </div>
+        <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-[#3E2723] mb-2 tracking-wide whitespace-nowrap">${new Date().getFullYear()} ${new Date().getMonth() + 1}月 每日目標挑戰</h1>
+        <p class="text-[#8D6E63] mb-12">一起成長嗷嗷嗷</p>
+        <div class="flex gap-4 justify-center w-full px-2">
+          <button data-action="set-identity" data-id="寶寶" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
+            <div class="w-16 h-16 bg-[#D7CCC8] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="sparkles" class="text-[#5D4037] w-8 h-8"></i></div>
+            <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是寶寶</h3><p class="text-xs text-[#8D6E63] leading-relaxed">可愛擔當<br/>認真生活</p></div>
+          </button>
+          <button data-action="set-identity" data-id="大叔" class="flex-1 aspect-[3/4] bg-white hover:bg-[#EFEBE9] border-2 border-[#D7CCC8] hover:border-[#8D6E63] rounded-2xl flex flex-col items-center justify-center p-4 transition-all shadow-sm hover:shadow-lg hover:-translate-y-1 group relative">
+            <div class="w-16 h-16 bg-[#BCAAA4] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner"><i data-lucide="heart" class="text-[#3E2723] fill-[#3E2723] w-8 h-8"></i></div>
+            <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是大叔</h3><p class="text-xs text-[#8D6E63] leading-relaxed">穩重擔當<br/>努力工作</p></div>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+};
 
 const renderDashboard = () => {
   const partnerName = state.identity === '寶寶' ? '大叔' : '寶寶';
@@ -788,23 +786,25 @@ const scheduleRender = () => {
 };
  
 const render = () => {
-      const appDiv = document.getElementById('app');
-      if (!state.identity) {
-        appDiv.innerHTML = renderLogin();
-      } else {
-        appDiv.innerHTML = renderDashboard();
-        
-        // 渲染完主畫面後，稍微延遲 0.3 秒再跳出公告，讓視覺過渡比較滑順
-        setTimeout(() => {
-            if (window.showAnnouncementModal && !announcementShownThisSession && localStorage.getItem('hide_announcement_date') !== getLogicDateString()) {
-                window.showAnnouncementModal();
-            } else {
-                window.checkDoubleCard(); // 如果不顯示公告，就直接檢查 Double 卡
-            }
-        }, 300);
-      }
-      lucide.createIcons();
-    };
+  const appDiv = document.getElementById('app');
+  
+  // ⚠️ 最關鍵的防呆魔法：必須「同時」檢查是否登入 Google 與是否有身分
+  if (!state.user || !state.identity) {
+    appDiv.innerHTML = renderLogin();
+  } else {
+    appDiv.innerHTML = renderDashboard();
+    
+    // 渲染完主畫面後，稍微延遲 0.3 秒再跳出公告或 Double 卡
+    setTimeout(() => {
+        if (window.showAnnouncementModal && !announcementShownThisSession && localStorage.getItem('hide_announcement_date') !== getLogicDateString()) {
+            window.showAnnouncementModal();
+        } else {
+            if(window.checkDoubleCard) window.checkDoubleCard(); 
+        }
+    }, 300);
+  }
+  lucide.createIcons();
+};
 
 // --- 事件處理與代理 (寫入雲端) ---
 document.addEventListener('click', async (e) => {

@@ -787,14 +787,12 @@ const scheduleRender = () => {
  
 const render = () => {
   const appDiv = document.getElementById('app');
-  
   // ⚠️ 最關鍵的防呆魔法：必須「同時」檢查是否登入 Google 與是否有身分
   if (!state.user || !state.identity) {
     appDiv.innerHTML = renderLogin();
   } else {
     appDiv.innerHTML = renderDashboard();
     
-    // 渲染完主畫面後，稍微延遲 0.3 秒再跳出公告或 Double 卡
     setTimeout(() => {
         if (window.showAnnouncementModal && !announcementShownThisSession && localStorage.getItem('hide_announcement_date') !== getLogicDateString()) {
             window.showAnnouncementModal();
@@ -818,7 +816,7 @@ document.addEventListener('click', async (e) => {
      e.stopPropagation();
   }
 
-  try {
+try {
     if (action === 'google-login') {
         const provider = new GoogleAuthProvider();
         try {

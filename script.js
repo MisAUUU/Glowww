@@ -135,9 +135,10 @@ const setupListeners = () => {
         }
       });
       
-      const uncleYogaDone = loadedTasks.some(t => t.owner === '大叔' && t.type === 'checklist' && t.checklistItems?.some(i => (i.id === 'yoga' || i.label.includes('瑜珈')) && i.isChecked));
+      // ⚠️ 這裡加入了防呆機制：(i.label || '').includes 和 (t.text || '').includes
+      const uncleYogaDone = loadedTasks.some(t => t.owner === '大叔' && t.type === 'checklist' && t.checklistItems?.some(i => (i.id === 'yoga' || (i.label || '').includes('瑜珈')) && i.isChecked));
       if (uncleYogaDone) {
-        const relaxTask = loadedTasks.find(t => t.owner === '大叔' && t.text.includes('放鬆&伸展') && !t.completed);
+        const relaxTask = loadedTasks.find(t => t.owner === '大叔' && (t.text || '').includes('放鬆&伸展') && !t.completed);
         if (relaxTask) {
            batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', relaxTask.id), { completed: true });
            needsBatchCommit = true;
@@ -286,7 +287,6 @@ const updateDailyRecords = async () => {
         lucide.createIcons();
     };
 
-
 const renderLogin = () => {
   if (!state.user) {
     return `
@@ -328,6 +328,28 @@ const renderLogin = () => {
             <div class="text-center"><h3 class="text-lg font-bold text-[#4E342E] mb-2">我是大叔</h3><p class="text-xs text-[#8D6E63] leading-relaxed">穩重擔當<br/>努力工作</p></div>
           </button>
         </div>
+      </div>
+    </div>
+  `;
+};
+
+// ⚠️ 這裡就是之前不小心消失的進度條函數！
+const renderProgressBar = (label, total, completed, colorClass, iconName) => {
+  const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+  const prevPerc = prevProgressState.get(label) ?? 0;
+  prevProgressState.set(label, percentage);
+
+  return `
+    <div class="mb-4">
+      <div class="flex justify-between items-end mb-1">
+        <div class="flex items-center gap-2 text-stone-700 font-bold">
+          <i data-lucide="${iconName}" class="w-[18px] h-[18px] text-[#8D6E63] ${iconName==='heart'?'fill-[#8D6E63]':''}"></i>
+          <span>${label}</span>
+        </div>
+        <span class="text-xs font-medium text-stone-500">${completed}/${total} (${percentage}%)</span>
+      </div>
+      <div class="w-full h-4 bg-stone-200 rounded-full overflow-hidden p-0.5">
+        <div class="h-full rounded-full progress-animate ${colorClass}" style="--start-w: ${prevPerc}%; --end-w: ${percentage}%; width: ${percentage}%"></div>
       </div>
     </div>
   `;
@@ -641,14 +663,14 @@ const renderTaskHtml = (task, isOwner) => {
         </div>
       `;
     };
+
 // --- 寶包有話要說：公告 Modal 邏輯 ---
-    let announcementShownThisSession = false; // 紀錄這次打開網頁是否已經顯示過了
+    let announcementShownThisSession = false; 
     
     window.showAnnouncementModal = () => {
-        if (announcementShownThisSession) return; // 如果剛才已經跳過，就不要再煩人
+        if (announcementShownThisSession) return; 
         
         const todayStr = getLogicDateString();
-        // 檢查 localStorage 裡面記的日期，是不是等於今天
         if (localStorage.getItem('hide_announcement_date') === todayStr) return; 
         
         announcementShownThisSession = true; 
@@ -692,17 +714,15 @@ const renderTaskHtml = (task, isOwner) => {
             localStorage.setItem('hide_announcement_date', getLogicDateString());
         }
         document.getElementById('modals').innerHTML = '';
-        window.checkDoubleCard(); // 公告關閉後，接著檢查 Double 卡
+        window.checkDoubleCard(); 
     };
 
     // --- Double 卡補救機制 ---
     window.checkDoubleCard = () => {
         if (!state.identity || !state.user) return;
         const todayStr = getLogicDateString();
-        // 如果今天已經處理過（拒絕或找不到），就不再煩人
         if (localStorage.getItem(`double_card_prompt_${state.identity}`) === todayStr) return;
 
-        // 計算昨天的邏輯日期
         const now = new Date();
         if (now.getHours() < 5) now.setDate(now.getDate() - 1);
         now.setDate(now.getDate() - 1); 
@@ -714,26 +734,23 @@ const renderTaskHtml = (task, isOwner) => {
         const details = state.identity === '寶寶' ? yRecord.babyDetails : yRecord.uncleDetails;
         if (!details || !details.missed) { localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr); return; }
 
-        // 篩選出昨天的「每日任務」（排除每週任務）
         const missedDaily = details.missed.filter(missedText => {
             const taskObj = state.tasks.find(t => t.owner === state.identity && (t.originalText || t.text) === missedText);
             return taskObj && !isTaskWeekly(taskObj);
         });
 
-        // 條件：剛好只有 1 項每日任務沒完成
         if (missedDaily.length === 1) {
             const missedTaskText = missedDaily[0];
             const taskObj = state.tasks.find(t => t.owner === state.identity && (t.originalText || t.text) === missedTaskText);
             
-            if (taskObj && taskObj.remedyTargetDate === yStr) return; // 已經按過「我要！！」了
+            if (taskObj && taskObj.remedyTargetDate === yStr) return; 
             
             if (taskObj) {
                 showDoubleCardModal(missedTaskText, yStr, taskObj.id);
-                return; // 成功顯示，中斷往下儲存
+                return; 
             }
         }
         
-        // 其他情況（全完成、漏掉 >= 2 項），標記為今天已檢查
         localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr);
     };
 
@@ -787,7 +804,6 @@ const scheduleRender = () => {
  
 const render = () => {
   const appDiv = document.getElementById('app');
-  // ⚠️ 最關鍵的防呆魔法：必須「同時」檢查是否登入 Google 與是否有身分
   if (!state.user || !state.identity) {
     appDiv.innerHTML = renderLogin();
   } else {
@@ -817,7 +833,6 @@ document.addEventListener('click', async (e) => {
   }
 
   try {
-    // 💡 這裡就是新接上的 Google 登入電線！
     if (action === 'google-login') {
         const provider = new GoogleAuthProvider();
         try {
@@ -834,7 +849,7 @@ document.addEventListener('click', async (e) => {
     } 
     else if (action === 'logout') {
       window.showConfirm("確定要登出這個裝置嗎？", async () => {
-          await signOut(auth); // 徹底登出 Google 帳號
+          await signOut(auth); 
           state.identity = null;
           state.user = null;
           localStorage.removeItem('task_app_identity');
@@ -911,10 +926,8 @@ document.addEventListener('click', async (e) => {
     else if (action === 'complete-remedy') {
           const task = state.tasks.find(t => String(t.id) === String(id));
           if (task && task.owner === state.identity && !task.remedyCompleted) {
-             // 1. 完成今日補救項目
              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'challenge_tasks', id), { remedyCompleted: true });
 
-             // 2. 更新昨天的日曆紀錄
              const targetDate = task.remedyTargetDate;
              if (targetDate) {
                  const record = state.calendarRecords[targetDate] || {};
@@ -942,7 +955,7 @@ document.addEventListener('click', async (e) => {
           const field = target.dataset.field;
           if (task) {
              if (field === 'text' && task.owner !== state.identity) {
-                return; // 標題只能由擁有人自己修改 (不再阻擋預設任務)
+                return; 
              }
              window.openEditModal(task.id, field, null, task[field] || '', field === 'text' ? '修改任務名稱' : '互相留言給對方');
           }
@@ -1017,7 +1030,6 @@ document.addEventListener('click', async (e) => {
 });
 
 // --- Modal Submit 與資料庫更新邏輯 ---
-// 3. 修改文字/備註 Modal
     window._editModalState = { id: null, type: null, cid: null, value: '' };
     window.openEditModal = (id, type, cid, currentValue, title) => {
       window._editModalState = { id, type, cid, value: currentValue };
@@ -1064,7 +1076,6 @@ document.addEventListener('click', async (e) => {
            let updateData = {};
            if (type === 'text') {
              updateData.text = newVal;
-             // 【防呆機制】如果改的是預設任務，幫它偷偷記下原本的名字，避免被系統重複生成
              if (task.isDefault && !task.originalText) {
                 updateData.originalText = task.text;
              }
@@ -1091,7 +1102,6 @@ document.addEventListener('click', async (e) => {
        document.getElementById('modals').innerHTML = '';
     };
 
-    // 4. 新增臨時任務 Modal
     const getAddTaskModalHtml = () => `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
         <div class="bg-[#FDF8F3] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-[#D7CCC8] slide-up">
@@ -1126,7 +1136,6 @@ document.addEventListener('click', async (e) => {
        document.getElementById('modals').innerHTML = '';
     };
 
-    // 5. 叔寶銀行 Modal
     const updateBankModalHtml = () => {
        const s = window._bankModalState;
        const html = `
@@ -1160,7 +1169,6 @@ document.addEventListener('click', async (e) => {
        lucide.createIcons();
     };
 
-    // 6. 點擊日曆查看詳情 Modal
     const openDayDetailModal = (dateStr, record) => {
       const [year, month, day] = dateStr.split('-');
       const babyMissed = record?.babyDetails?.missed || [];

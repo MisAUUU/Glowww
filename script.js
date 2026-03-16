@@ -685,8 +685,8 @@ const renderTaskHtml = (task, isOwner) => {
     window.showAnnouncementModal = () => {
         if (announcementShownThisSession) return; 
         
-        const todayStr = getLogicDateString();
-        if (localStorage.getItem('hide_announcement_date') === todayStr) return; 
+        // 檢查是否已經勾選過「不再顯示」
+        if (localStorage.getItem('hide_announcement_v2') === 'true') return; 
         
         announcementShownThisSession = true; 
 
@@ -701,18 +701,21 @@ const renderTaskHtml = (task, isOwner) => {
                         <div class="inline-flex items-center justify-center p-3 bg-white rounded-full shadow-sm border border-[#EFEBE9] mb-3">
                             <i data-lucide="megaphone" class="w-6 h-6 text-[#8D6E63] fill-[#D7CCC8]"></i>
                         </div>
-                        <h3 class="text-xl font-bold text-[#5D4037]">寶包有話要說嗷嗷嗷</h3>
+                        <h3 class="text-xl font-bold text-[#5D4037]">寶包有話要跟泥說！！</h3>
                     </div>
                     
                     <div class="bg-white p-5 rounded-2xl border border-[#EFEBE9] shadow-sm mb-6">
                         <p class="text-[#5D4037] text-sm leading-relaxed text-center font-bold">
-                            現在點所有的叉叉都可以關掉了嗷嗷嗷，<br>點空白處也還是可以嗷嗷！
+                            這次有了google登入功能了，<br>然後也沒有重複的每日任務了！<br><br>
+                            如果之後有重複的再出現的話，就先刪除多餘的，然後重整網頁看看。<br><br>
+                            如果還是不行請聯繫寶包專線：<br>
+                            <span class="text-[#8D6E63] mt-2 inline-block px-3 py-1.5 bg-[#FDF8F3] rounded-lg border border-[#D7CCC8]">「寶包寶包萬能寶包，我需要泥！」</span>
                         </p>
                     </div>
                     
                     <label class="flex items-center justify-center gap-2 mb-5 cursor-pointer group w-fit mx-auto">
-                        <input type="checkbox" id="dont-show-today" class="w-4 h-4 accent-[#8D6E63] cursor-pointer rounded border-[#D7CCC8]">
-                        <span class="text-xs text-[#8D6E63] font-bold group-hover:text-[#5D4037] transition-colors">今天不再顯示此公告</span>
+                        <input type="checkbox" id="dont-show-again" class="w-4 h-4 accent-[#8D6E63] cursor-pointer rounded border-[#D7CCC8]">
+                        <span class="text-xs text-[#8D6E63] font-bold group-hover:text-[#5D4037] transition-colors">不再顯示此公告</span>
                     </label>
                     
                     <button onclick="closeAnnouncement()" class="w-full py-3 bg-[#5D4037] text-white rounded-xl font-bold text-sm hover:bg-[#3E2723] transition-colors shadow-md">我知道了</button>
@@ -724,9 +727,10 @@ const renderTaskHtml = (task, isOwner) => {
     };
 
     window.closeAnnouncement = () => {
-        const isChecked = document.getElementById('dont-show-today')?.checked;
+        const isChecked = document.getElementById('dont-show-again')?.checked;
         if (isChecked) {
-            localStorage.setItem('hide_announcement_date', getLogicDateString());
+            // 如果打勾了，就在瀏覽器裡記下 'true'，以後永遠不顯示
+            localStorage.setItem('hide_announcement_v2', 'true');
         }
         document.getElementById('modals').innerHTML = '';
         window.checkDoubleCard(); 
@@ -825,7 +829,8 @@ const render = () => {
     appDiv.innerHTML = renderDashboard();
     
     setTimeout(() => {
-        if (window.showAnnouncementModal && !announcementShownThisSession && localStorage.getItem('hide_announcement_date') !== getLogicDateString()) {
+        // 更新了判斷條件：只要勾選過「不再顯示」，這裡就會是 'true'
+        if (window.showAnnouncementModal && !announcementShownThisSession && localStorage.getItem('hide_announcement_v2') !== 'true') {
             window.showAnnouncementModal();
         } else {
             if(window.checkDoubleCard) window.checkDoubleCard(); 

@@ -816,7 +816,8 @@ document.addEventListener('click', async (e) => {
      e.stopPropagation();
   }
 
-try {
+  try {
+    // 💡 這裡就是新接上的 Google 登入電線！
     if (action === 'google-login') {
         const provider = new GoogleAuthProvider();
         try {

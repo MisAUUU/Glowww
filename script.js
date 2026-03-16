@@ -472,14 +472,23 @@ const renderCalendarHtml = () => {
     const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
     const isSunday = d.getDay() === 0;
     const isLastDay = d.getDate() === daysInMonth;
-    const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const record = state.calendarRecords[dateString] || {};
     
+    // 檢查是否「全部補救成功」
+    const babyMissed = record.babyDetails?.missed || [];
+    const babyRemedied = record.babyDetails?.remedied || [];
+    const babyHasEmoji = record.baby || (record.babyDetails?.total > 0 && babyMissed.length > 0 && babyMissed.every(m => babyRemedied.includes(m)));
+    
+    const uncleMissed = record.uncleDetails?.missed || [];
+    const uncleRemedied = record.uncleDetails?.remedied || [];
+    const uncleHasEmoji = record.uncle || (record.uncleDetails?.total > 0 && uncleMissed.length > 0 && uncleMissed.every(m => uncleRemedied.includes(m)));
+
     gridHtml += `
       <div data-action="open-day-detail" data-date="${dateString}" class="aspect-square relative rounded-xl border transition-all overflow-hidden cursor-pointer active:scale-95 ${isToday ? 'bg-[#8D6E63] border-[#5D4037] text-white shadow-md' : 'bg-[#FFFCFA] border-[#F2EBE5] text-[#8D6E63] hover:bg-[#FDF8F3] hover:border-[#EFEBE9]'}">
         <span class="absolute top-1 left-1.5 text-[10px] font-bold leading-none z-10">${i}</span>
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 z-0">${isSunday ? '<span class="text-lg leading-none">🎁</span>' : ''}${isLastDay ? '<span class="text-lg leading-none">🎉</span>' : ''}</div>
-        <div class="absolute inset-0 flex items-center justify-center pt-3 gap-0.5 z-20 pointer-events-none">${record.baby ? '<span class="text-sm leading-none drop-shadow-sm">💅</span>' : ''}${record.uncle ? '<span class="text-sm leading-none drop-shadow-sm">💋</span>' : ''}</div>
+        <div class="absolute inset-0 flex items-center justify-center pt-3 gap-0.5 z-20 pointer-events-none">${babyHasEmoji ? '<span class="text-sm leading-none drop-shadow-sm">💅</span>' : ''}${uncleHasEmoji ? '<span class="text-sm leading-none drop-shadow-sm">💋</span>' : ''}</div>
       </div>
     `;
   }
@@ -1182,8 +1191,17 @@ document.addEventListener('click', async (e) => {
       const babyTotal = record?.babyDetails?.total || 0;
       const uncleTotal = record?.uncleDetails?.total || 0;
       const hasRecord = !!record;
-      const babyAllDone = babyTotal > 0 && babyMissed.length === 0;
-      const uncleAllDone = uncleTotal > 0 && uncleMissed.length === 0;
+      
+      const babyRemedied = record?.babyDetails?.remedied || [];
+      const uncleRemedied = record?.uncleDetails?.remedied || [];
+
+      // 計算是否獲得集點卡上的專屬 Emoji (原本就全對，或是事後靠 Double 卡補救成功)
+      const babyHasEmoji = babyTotal > 0 && babyMissed.every(m => babyRemedied.includes(m));
+      const uncleHasEmoji = uncleTotal > 0 && uncleMissed.every(m => uncleRemedied.includes(m));
+
+      // 檢查是否一開始就「完美達成」(無須補救)
+      const babyPerfect = babyTotal > 0 && babyMissed.length === 0;
+      const unclePerfect = uncleTotal > 0 && uncleMissed.length === 0;
 
       const html = `
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#4E342E]/40 backdrop-blur-sm fade-in" onclick="if(event.target === this) document.getElementById('modals').innerHTML=''">
@@ -1195,12 +1213,12 @@ document.addEventListener('click', async (e) => {
             ${!hasRecord ? `<div class="text-center py-8 text-[#A1887F] bg-white rounded-2xl border border-dashed border-[#D7CCC8]"><p>這一天沒有挑戰紀錄喔 😴</p></div>` : `
               <div class="space-y-4">
                 <div class="bg-white p-4 rounded-2xl border border-[#FFE0B2] shadow-sm">
-                   <div class="flex justify-between items-center mb-2 border-b border-[#FFF3E0] pb-2"><h4 class="font-bold text-[#8D6E63] flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> 寶寶</h4>${babyAllDone ? '<span class="text-lg">💅</span>' : ''}</div>
-                   ${babyTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : babyAllDone ? '<p class="text-xs text-[#8D6E63] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太棒了！</p>' : `<div><p class="text-[10px] text-[#A1887F] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${babyMissed.map(t => { const isRemedied = record?.babyDetails?.remedied?.includes(t); return `<li class="text-xs text-[#8D6E63]">${isRemedied ? `<s class="opacity-60">${t}</s> <span class="text-green-600 font-bold ml-1">守住了嗷嗷嗷！</span>` : t}</li>`; }).join('')}</ul></div>`}
+                   <div class="flex justify-between items-center mb-2 border-b border-[#FFF3E0] pb-2"><h4 class="font-bold text-[#8D6E63] flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> 寶寶</h4>${babyHasEmoji ? '<span class="text-lg">💅</span>' : ''}</div>
+                   ${babyTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : babyPerfect ? '<p class="text-xs text-[#8D6E63] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太棒了！</p>' : `<div><p class="text-[10px] text-[#A1887F] mb-1">${babyHasEmoji ? '已全數補救：' : '未完成項目：'}</p><ul class="list-disc list-inside space-y-1">${babyMissed.map(t => { const isRemedied = babyRemedied.includes(t); return `<li class="text-xs text-[#8D6E63]">${isRemedied ? `<s class="opacity-60">${t}</s> <span class="text-green-600 font-bold ml-1">守住了嗷嗷嗷！ 💅</span>` : t}</li>`; }).join('')}</ul></div>`}
                 </div>
                 <div class="bg-white p-4 rounded-2xl border border-[#E0E0E0] shadow-sm">
-                   <div class="flex justify-between items-center mb-2 border-b border-[#F5F5F5] pb-2"><h4 class="font-bold text-[#616161] flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4"></i> 大叔</h4>${uncleAllDone ? '<span class="text-lg">💋</span>' : ''}</div>
-                   ${uncleTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : uncleAllDone ? '<p class="text-xs text-[#616161] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太強了！</p>' : `<div><p class="text-[10px] text-[#9E9E9E] mb-1">未完成項目：</p><ul class="list-disc list-inside space-y-1">${uncleMissed.map(t => { const isRemedied = record?.uncleDetails?.remedied?.includes(t); return `<li class="text-xs text-[#757575]">${isRemedied ? `<s class="opacity-60">${t}</s> <span class="text-green-600 font-bold ml-1">守住了嗷嗷嗷！</span>` : t}</li>`; }).join('')}</ul></div>`}
+                   <div class="flex justify-between items-center mb-2 border-b border-[#F5F5F5] pb-2"><h4 class="font-bold text-[#616161] flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4"></i> 大叔</h4>${uncleHasEmoji ? '<span class="text-lg">💋</span>' : ''}</div>
+                   ${uncleTotal === 0 ? '<p class="text-xs text-[#D7CCC8]">無任務</p>' : unclePerfect ? '<p class="text-xs text-[#616161] font-bold flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> 任務全數完成！太強了！</p>' : `<div><p class="text-[10px] text-[#9E9E9E] mb-1">${uncleHasEmoji ? '已全數補救：' : '未完成項目：'}</p><ul class="list-disc list-inside space-y-1">${uncleMissed.map(t => { const isRemedied = uncleRemedied.includes(t); return `<li class="text-xs text-[#757575]">${isRemedied ? `<s class="opacity-60">${t}</s> <span class="text-green-600 font-bold ml-1">守住了嗷嗷嗷！ 💋</span>` : t}</li>`; }).join('')}</ul></div>`}
                 </div>
               </div>
             `}

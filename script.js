@@ -739,9 +739,15 @@ const renderTaskHtml = (task, isOwner) => {
     // --- Double 卡補救機制 ---
     window.checkDoubleCard = () => {
         if (!state.identity || !state.user) return;
+        
+        // 🛡️ 【修復關鍵】：確保任務和日曆紀錄都已經從雲端下載完畢了，才開始判斷！否則直接退回等待。
+        if (state.tasks.length === 0 || Object.keys(state.calendarRecords).length === 0) return;
+
         const todayStr = getLogicDateString();
+        // 如果今天已經處理過（拒絕或找不到），就不再煩人
         if (localStorage.getItem(`double_card_prompt_${state.identity}`) === todayStr) return;
 
+        // 計算昨天的邏輯日期
         const now = new Date();
         if (now.getHours() < 5) now.setDate(now.getDate() - 1);
         now.setDate(now.getDate() - 1); 
@@ -753,23 +759,26 @@ const renderTaskHtml = (task, isOwner) => {
         const details = state.identity === '寶寶' ? yRecord.babyDetails : yRecord.uncleDetails;
         if (!details || !details.missed) { localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr); return; }
 
+        // 篩選出昨天的「每日任務」（排除每週任務）
         const missedDaily = details.missed.filter(missedText => {
             const taskObj = state.tasks.find(t => t.owner === state.identity && (t.originalText || t.text) === missedText);
             return taskObj && !isTaskWeekly(taskObj);
         });
 
+        // 條件：剛好只有 1 項每日任務沒完成
         if (missedDaily.length === 1) {
             const missedTaskText = missedDaily[0];
             const taskObj = state.tasks.find(t => t.owner === state.identity && (t.originalText || t.text) === missedTaskText);
             
-            if (taskObj && taskObj.remedyTargetDate === yStr) return; 
+            if (taskObj && taskObj.remedyTargetDate === yStr) return; // 已經按過「我要！！」了
             
             if (taskObj) {
                 showDoubleCardModal(missedTaskText, yStr, taskObj.id);
-                return; 
+                return; // 成功顯示，中斷往下儲存
             }
         }
         
+        // 其他情況（全完成、漏掉 >= 2 項），標記為今天已檢查
         localStorage.setItem(`double_card_prompt_${state.identity}`, todayStr);
     };
 
